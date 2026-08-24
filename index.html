@@ -82,7 +82,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 /* ====== SETTINGS — fill these two in ====== */
 const SUPABASE_URL = "https://coyezjmtealvmltnsxgw.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNveWV6am10ZWFsdm1sdG5zeGd3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA4OTY5MDYsImV4cCI6MjA5NjQ3MjkwNn0.0m3zIy0AjYkZHVjnNc_zSXvVRlyozCmh8UNqT6nVThI";
+const SUPABASE_ANON_KEY = "PASTE_YOUR_ANON_PUBLIC_KEY_HERE";
 /* ========================================== */
 
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -97,31 +97,39 @@ const pad=n=>(n<10?"0":"")+n;
 const dnum=iso=>Math.floor(Date.parse(iso+"T00:00:00Z")/86400000);
 const fmt=iso=>{const p=(iso||"").split("-");return p.length===3?p[2]+" "+MON[+p[1]-1]:iso;};
 const fmtFull=iso=>{const d=new Date(iso+"T00:00:00Z");return DOW[d.getUTCDay()]+" "+d.getUTCDate()+" "+MON[d.getUTCMonth()]+" "+d.getUTCFullYear();};
+const stamp=ts=>{ if(!ts) return ""; const d=new Date(ts); return d.toLocaleDateString("en-GB",{day:"2-digit",month:"short",year:"numeric"})+", "+d.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit"}); };
 const esc=t=>String(t==null?"":t).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
 let toastT; function toast(m){clearTimeout(toastT);let t=document.querySelector(".toast");if(!t){t=$('<div class="toast"></div>');document.body.appendChild(t);}t.textContent=m;toastT=setTimeout(()=>t.remove(),2800);}
 
 /* ---- parse the daily movement email ---- */
-function parse(text){
-  const out=[];
-  (String(text||"").split(/Vessel\s*:/i).slice(1)).forEach(b=>{
-    const lines=b.split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
-    if(!lines.length) return;
-    const v={name:lines[0].replace(/\s+/g," ").trim(),movement:"",loaded:"",events:[]};
-    lines.slice(1).forEach(ln=>{
-      let m=ln.match(/^Movement\s*:?\s*(.*)$/i); if(m){v.movement=m[1].replace(/\s+/g," ").trim();return;}
-      m=ln.match(/^Loaded\s*:?\s*(.*)$/i); if(m){v.loaded=m[1].replace(/\s+/g," ").trim();return;}
-      const ev=ln.match(/\b(ET[ABD])\b\s+([A-Za-z]+)/i), dm=ln.match(/(\d{1,2})\.(\d{1,2})\.(\d{4})/);
-      if(ev&&dm){
-        const before=ln.slice(0,ln.indexOf(dm[0]));
-        v.events.push({type:ev[1].toUpperCase(),port:ev[2].replace(/[^A-Za-z]/g,""),
-          iso:`${+dm[3]}-${pad(+dm[2])}-${pad(+dm[1])}`,
-          time:(before.split(":").slice(1).join(":")||"").replace(/\s+/g," ").trim(),
-          voy:(ln.match(/Voy[^)\n]*?\d+/i)||[""])[0].trim()});
-      }
-    });
-    if(v.events.length) out.push(v);
+// Splits the email into blocks (one per vessel) and keeps each raw block, so an
+// admin can edit a single vessel without re-pasting the whole message.
+function split(text){
+  const parts=String(text||"").split(/(?=Vessel\s*:)/i);
+  const pre=/Vessel\s*:/i.test(parts[0]||"")?"":(parts.shift()||"");
+  return {pre,blocks:parts};
+}
+function parseBlock(b,idx){
+  const lines=b.split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
+  if(!lines.length) return null;
+  const v={idx,raw:b,name:lines[0].replace(/^Vessel\s*:/i,"").replace(/\s+/g," ").trim(),movement:"",loaded:"",events:[]};
+  lines.slice(1).forEach(ln=>{
+    let m=ln.match(/^Movement\s*:?\s*(.*)$/i); if(m){v.movement=m[1].replace(/\s+/g," ").trim();return;}
+    m=ln.match(/^Loaded\s*:?\s*(.*)$/i); if(m){v.loaded=m[1].replace(/\s+/g," ").trim();return;}
+    const ev=ln.match(/\b(ET[ABD])\b\s+([A-Za-z]+)/i), dm=ln.match(/(\d{1,2})\.(\d{1,2})\.(\d{4})/);
+    if(ev&&dm){
+      const before=ln.slice(0,ln.indexOf(dm[0]));
+      v.events.push({type:ev[1].toUpperCase(),port:ev[2].replace(/[^A-Za-z]/g,""),
+        iso:`${+dm[3]}-${pad(+dm[2])}-${pad(+dm[1])}`,
+        time:(before.split(":").slice(1).join(":")||"").replace(/\s+/g," ").trim(),
+        voy:(ln.match(/Voy[^)\n]*?\d+/i)||[""])[0].trim()});
+    }
   });
-  return out;
+  return v;
+}
+function parse(text){
+  const {blocks}=split(text);
+  return blocks.map((b,i)=>parseBlock(b,i)).filter(v=>v&&v.events.length);
 }
 function stays(v,minIso){
   const ev=v.events.slice().sort((a,b)=>a.iso.localeCompare(b.iso)); const out=[]; let open=null;
@@ -137,7 +145,7 @@ function stays(v,minIso){
 }
 
 /* ---- state ---- */
-let session=null, isAdmin=false, updates=[], selId="", tab="timeline";
+let session=null, isAdmin=false, updates=[], selId="", tab="timeline", editIdx=null, editAll=false;
 
 async function resolveRole(){
   isAdmin=false;
@@ -149,7 +157,7 @@ async function resolveRole(){
                      if(data&&data.role==="admin") isAdmin=true; }catch(e){} }
 }
 async function load(){
-  const {data,error}=await sb.from("shipping_updates").select("id,update_date,raw_text,created_at").order("update_date",{ascending:false}).order("created_at",{ascending:false});
+  const {data,error}=await sb.from("shipping_updates").select("id,update_date,raw_text,created_at,published_by").order("update_date",{ascending:false}).order("created_at",{ascending:false});
   if(error){ toast(/shipping_updates|relation/i.test(error.message)?"Run enable_shipping.sql in Supabase first":error.message); updates=[]; return; }
   updates=data||[]; if(!updates.some(u=>u.id===selId)) selId=updates[0]?updates[0].id:"";
 }
@@ -187,9 +195,30 @@ function viewDay(vessels){
 }
 function viewVessel(vessels){
   if(!vessels.length) return '<div class="empty">No vessels in this update.</div>';
-  return '<div class="vessels">'+vessels.map(v=>`<div class="vcard"><div class="vh"><div class="nm">${esc(v.name)}</div><div class="mv">${esc(v.movement)}${v.loaded?" · Loaded: "+esc(v.loaded):""}</div></div><div style="padding:6px 0">`+
+  return '<div class="vessels">'+vessels.map(v=>{
+    if(isAdmin && editIdx===v.idx) return `<div class="vcard"><div class="vh"><div class="nm">Editing ${esc(v.name)}</div><div class="mv">Change the lines below, then Save</div></div>
+      <div style="padding:12px 14px">
+        <textarea id="vraw" style="width:100%;min-height:230px;border:1px solid var(--line);border-radius:8px;padding:10px 12px;font-family:'IBM Plex Mono',monospace;font-size:12px;line-height:1.5;resize:vertical">${esc(v.raw.trim())}</textarea>
+        <div class="bar" style="margin-top:10px"><button class="btn sm" data-save="${v.idx}">Save vessel</button><button class="btn ghost sm" data-cancel="1">Cancel</button></div>
+      </div></div>`;
+    return `<div class="vcard"><div class="vh"><div class="nm">${esc(v.name)}${isAdmin?`<button class="btn ghost sm" data-edit="${v.idx}" style="float:right;margin-top:-2px">Edit</button>`:""}</div><div class="mv">${esc(v.movement)}${v.loaded?" · Loaded: "+esc(v.loaded):""}</div></div><div style="padding:6px 0">`+
     v.events.slice().sort((a,b)=>a.iso.localeCompare(b.iso)).map(e=>`<div class="leg"><span class="d">${fmt(e.iso)}</span><span class="e">${e.type}</span><span style="font-weight:600;color:${pc(e.port)}">${esc(e.port)}</span><span class="t">${esc(e.time)}${e.voy?" · "+esc(e.voy):""}</span></div>`).join("")+
-    `</div></div>`).join("")+'</div>';
+    `</div></div>`;
+  }).join("")+'</div>';
+}
+
+/* ---- editing ---- */
+async function saveRaw(id,newRaw){
+  const {error}=await sb.from("shipping_updates").update({raw_text:newRaw,published_by:session.user.email}).eq("id",id);
+  if(error){ toast(error.message); return false; }
+  await load(); toast("Update saved"); return true;
+}
+async function saveVessel(cur,idx,newBlock){
+  const {pre,blocks}=split(cur.raw_text);
+  if(idx<0||idx>=blocks.length){ toast("Could not locate that vessel"); return; }
+  let b=newBlock.trim(); if(!/^Vessel\s*:/i.test(b)) b="Vessel: "+b;
+  blocks[idx]="\n"+b+"\n\n";
+  if(await saveRaw(cur.id,pre+blocks.join(""))){ editIdx=null; render(); }
 }
 
 /* ---- render ---- */
@@ -214,6 +243,8 @@ function render(){
     <div class="bar"><span class="hint">Update:</span>
       ${updates.length?`<select id="sel">${updates.map(u=>`<option value="${u.id}"${u.id===(cur&&cur.id)?" selected":""}>${fmtFull(u.update_date)}</option>`).join("")}</select>`:'<span class="hint">No updates published yet.</span>'}
       ${cur?`<span class="hint">${vessels.length} vessels</span>`:""}
+      ${cur?`<span class="hint" style="margin-left:auto;text-align:right">Published by <b style="color:var(--ink)">${esc(cur.published_by||"—")}</b><br>${esc(stamp(cur.created_at))}</span>`:""}
+      ${isAdmin&&cur?'<button class="btn ghost sm" id="editall">Edit full text</button>':""}
       ${isAdmin&&cur?'<button class="btn ghost sm" id="del">Delete this update</button>':""}
     </div>
     ${isAdmin?`<details class="paste"><summary>+ Publish a new daily update</summary><div class="body">
@@ -228,20 +259,29 @@ function render(){
       <button class="tab${tab==="vessel"?" on":""}" data-t="vessel">By vessel</button>
     </div>
     <div class="legend">${Object.keys(PORTS).filter(p=>used[p]).map(p=>`<b><span class="dot" style="background:${pc(p)}"></span>${p[0]+p.slice(1).toLowerCase()}</b>`).join("")}</div>
+    ${isAdmin&&cur&&editAll?`<div class="paste" style="padding:16px"><b style="color:var(--navy)">Edit the full update of ${fmtFull(cur.update_date)}</b>
+      <textarea id="allraw" style="width:100%;min-height:320px;margin-top:8px;border:1px solid var(--line);border-radius:8px;padding:10px 12px;font-family:'IBM Plex Mono',monospace;font-size:12px;line-height:1.5;resize:vertical">${esc(cur.raw_text)}</textarea>
+      <div class="bar" style="margin-top:10px"><button class="btn" id="saveall">Save</button><button class="btn ghost" id="cancelall">Cancel</button></div></div>`:""}
     <div id="view">${!cur?`<div class="empty">No update selected. ${isAdmin?"Publish one above to get started.":"Ask an administrator to publish today's update."}</div>`:(tab==="timeline"?viewTimeline(vessels):tab==="day"?viewDay(vessels):viewVessel(vessels))}</div>
   </div>`;
   document.getElementById("out").onclick=()=>sb.auth.signOut();
   const sel=document.getElementById("sel"); if(sel) sel.onchange=e=>{selId=e.target.value;render();};
-  document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>{tab=b.dataset.t;render();});
+  document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>{tab=b.dataset.t;editIdx=null;render();});
   const pub=document.getElementById("pub");
   if(pub) pub.onclick=async()=>{
     const raw=document.getElementById("raw").value, d=document.getElementById("d").value;
     if(!raw.trim()) return alert("Paste the daily update first.");
     if(!d) return alert("Pick the update date.");
-    const {error}=await sb.from("shipping_updates").insert({update_date:d,raw_text:raw,created_by:session.user.id});
+    const {error}=await sb.from("shipping_updates").insert({update_date:d,raw_text:raw,created_by:session.user.id,published_by:session.user.email});
     if(error) return toast(error.message);
     await load(); toast("Update published"); render();
   };
+  document.querySelectorAll("[data-edit]").forEach(b=>b.onclick=()=>{ editIdx=+b.dataset.edit; render(); });
+  document.querySelectorAll("[data-cancel]").forEach(b=>b.onclick=()=>{ editIdx=null; render(); });
+  document.querySelectorAll("[data-save]").forEach(b=>b.onclick=()=>{ saveVessel(cur,+b.dataset.save,document.getElementById("vraw").value); });
+  const ea=document.getElementById("editall"); if(ea) ea.onclick=()=>{ editAll=true; editIdx=null; render(); };
+  const ca=document.getElementById("cancelall"); if(ca) ca.onclick=()=>{ editAll=false; render(); };
+  const sa=document.getElementById("saveall"); if(sa) sa.onclick=async()=>{ if(await saveRaw(cur.id,document.getElementById("allraw").value)){ editAll=false; render(); } };
   const del=document.getElementById("del");
   if(del) del.onclick=async()=>{ if(!confirm("Delete this update?"))return;
     const {error}=await sb.from("shipping_updates").delete().eq("id",cur.id);
@@ -258,4 +298,3 @@ sb.auth.onAuthStateChange(async(_e,s)=>{ session=s; if(session){await resolveRol
 </script>
 </body>
 </html>
-
