@@ -145,12 +145,13 @@ function stays(v,minIso){
 }
 
 /* ---- state ---- */
-let session=null, isAdmin=false, updates=[], selId="", tab="timeline", editIdx=null, editAll=false;
+let session=null, isAdmin=false, updates=[], selId="", tab="timeline", editIdx=null, editAll=false, lastError="";
 
 async function resolveRole(){
-  isAdmin=false;
+  isAdmin=false; lastError="";
   const email=(session.user.email||"").toLowerCase();
-  try{ const {data}=await sb.from("shipping_roles").select("role,user_id,email");
+  try{ const {data,error}=await sb.from("shipping_roles").select("role,user_id,email");
+       if(error) lastError="shipping_roles: "+error.message;
        if(data){ const mine=data.find(x=>x.user_id===session.user.id||String(x.email||"").toLowerCase()===email);
                  if(mine&&mine.role==="admin") isAdmin=true; } }catch(e){}
   if(!isAdmin){ try{ const {data}=await sb.from("profiles").select("role").eq("id",session.user.id).maybeSingle();
@@ -165,7 +166,7 @@ async function load(){
     ({data,error}=await sb.from("shipping_updates").select("id,update_date,raw_text,created_at").order("update_date",{ascending:false}).order("created_at",{ascending:false}));
     toast("Run enable_shipping_publisher.sql to record who published each update");
   }
-  if(error){ toast(/shipping_updates|relation/i.test(error.message)?"Run enable_shipping.sql in Supabase first":error.message); updates=[]; return; }
+  if(error){ lastError="shipping_updates: "+error.message; toast(/shipping_updates|relation/i.test(error.message)?"Run enable_shipping.sql in Supabase first":error.message); updates=[]; return; }
   updates=data||[]; if(!updates.some(u=>u.id===selId)) selId=updates[0]?updates[0].id:"";
 }
 
@@ -247,6 +248,8 @@ function render(){
     <div class="who">${esc(session.user.email)}<div class="rolechip">${isAdmin?"admin":"viewer"}</div>
       <button class="btn link" id="out">Sign out</button></div></div></header>
   <div class="wrap">
+    ${(SUPABASE_ANON_KEY.indexOf("PASTE_")===0)?`<div style="background:#fdecec;border:1px solid #e88;border-radius:10px;padding:12px 14px;margin-bottom:14px;font-size:13px;color:#a12b2b"><b>The Supabase key is missing.</b> Open index.html and replace PASTE_YOUR_ANON_PUBLIC_KEY_HERE with the anon public key, then upload it again.</div>`:""}
+    ${lastError?`<div style="background:#fdf6e8;border:1px solid #e0a92e;border-radius:10px;padding:12px 14px;margin-bottom:14px;font-size:13px;color:#7a5c00"><b>Could not read the database.</b><br>${esc(lastError)}<br><span style="font-size:12px">If it mentions JWT or apikey, the anon key in index.html is wrong. If it mentions a relation, the SQL has not been run.</span></div>`:""}
     <div class="bar"><span class="hint">Update:</span>
       ${updates.length?`<select id="sel">${updates.map(u=>`<option value="${u.id}"${u.id===(cur&&cur.id)?" selected":""}>${fmtFull(u.update_date)}</option>`).join("")}</select>`:'<span class="hint">No updates published yet.</span>'}
       ${cur?`<span class="hint">${vessels.length} vessels</span>`:""}
