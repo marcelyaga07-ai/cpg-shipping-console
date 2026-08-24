@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>CPG Shipping Console</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{--navy:#0e2a47;--navy-2:#173a5e;--ink:#12233a;--paper:#eef2f7;--card:#fff;--line:#dbe3ec;--mut:#6b7c93;--grey:#9aa8b8;
+        --afungi:#2563a8;--nacala:#1f7a4d;--pemba:#c08a1e;--maputo:#7b4fb5;--beira:#c9532b;--mtwara:#0e8a90;--other:#586b80;}
+  *{box-sizing:border-box}html,body{margin:0;padding:0}
+  body{font-family:"IBM Plex Sans",system-ui,sans-serif;background:var(--paper);color:var(--ink);-webkit-font-smoothing:antialiased}
+  .mono{font-family:"IBM Plex Mono",monospace}
+  header{background:linear-gradient(180deg,var(--navy),var(--navy-2));color:#fff;padding:18px 22px}
+  .brand{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+  .mark{width:34px;height:34px;border:2px solid #7fb0e6;border-radius:7px;display:flex;align-items:center;justify-content:center;font-weight:700;color:#cfe2f7;font-size:13px}
+  header h1{font-size:20px;margin:0}.sub{font-size:12.5px;color:#a9c2de;margin-top:2px}
+  .who{margin-left:auto;font-size:12px;color:#cfe0f2;text-align:right}
+  .rolechip{font-size:10px;letter-spacing:1px;text-transform:uppercase;color:#9fb4cc}
+  .wrap{max-width:1180px;margin:0 auto;padding:18px 22px 60px}
+  .btn{font-family:inherit;font-size:13px;font-weight:600;border-radius:8px;padding:8px 14px;border:1px solid var(--navy);background:var(--navy);color:#fff;cursor:pointer}
+  .btn.ghost{background:#fff;color:var(--navy)}.btn.sm{padding:6px 10px;font-size:12px}
+  .btn.link{background:none;border:none;color:#cfe0f2;text-decoration:underline;padding:0;font-size:12px;cursor:pointer}
+  .hint{font-size:12px;color:var(--mut)}
+  select,input,textarea{font-family:inherit}
+  select,input[type=date]{font-size:13px;border:1px solid var(--line);border-radius:8px;padding:7px 10px;background:#fff;color:var(--ink)}
+  .bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
+  .paste{background:var(--card);border:1px solid var(--line);border-radius:12px;margin-bottom:16px;overflow:hidden}
+  .paste summary{list-style:none;cursor:pointer;padding:12px 16px;font-weight:600;font-size:13.5px;color:var(--navy)}
+  .paste .body{padding:0 16px 16px}
+  .paste textarea{width:100%;min-height:150px;border:1px solid var(--line);border-radius:8px;padding:10px 12px;font-family:"IBM Plex Mono",monospace;font-size:12px;line-height:1.5;resize:vertical}
+  .tabs{display:flex;gap:4px;margin-bottom:14px;border-bottom:1px solid var(--line)}
+  .tab{font-size:13.5px;font-weight:600;color:var(--mut);background:none;border:none;border-bottom:2px solid transparent;padding:9px 14px;cursor:pointer}
+  .tab.on{color:var(--navy);border-bottom-color:var(--navy)}
+  .legend{display:flex;flex-wrap:wrap;gap:12px;margin:0 0 14px;font-size:12px;color:var(--mut)}
+  .legend b{display:inline-flex;align-items:center;gap:6px;font-weight:500;color:var(--ink)}
+  .dot{width:11px;height:11px;border-radius:3px;display:inline-block}
+  .tl{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:auto}
+  .axis{display:flex;position:sticky;top:0;background:var(--card);z-index:3;border-bottom:1px solid var(--line)}
+  .corner{min-width:158px;width:158px;position:sticky;left:0;background:var(--card);z-index:4;border-right:1px solid var(--line)}
+  .days{display:flex}
+  .day{width:30px;flex:0 0 30px;text-align:center;font-size:10px;color:var(--mut);padding:6px 0 4px;border-left:1px solid #eef2f7}
+  .day .mo{display:block;font-size:9px;color:var(--navy);font-weight:700;height:11px}
+  .day.we{background:#f7fafd}
+  .trow{display:flex;border-bottom:1px solid #eef2f7}
+  .vlabel{min-width:158px;width:158px;position:sticky;left:0;background:var(--card);z-index:2;border-right:1px solid var(--line);padding:8px 12px}
+  .vlabel .nm{font-weight:700;font-size:12.5px;color:var(--navy)}
+  .vlabel .mv{font-size:10.5px;color:var(--mut);margin-top:1px}
+  .track{position:relative;height:46px;flex:1}
+  .track .grid{position:absolute;top:0;bottom:0;width:1px;background:#f0f4f8}
+  .track .we{position:absolute;top:0;bottom:0;background:#f7fafd}
+  .portbar{position:absolute;top:9px;height:22px;border-radius:5px;display:flex;align-items:center;padding:0 7px;color:#fff;font-size:10.5px;font-weight:600;white-space:nowrap;overflow:hidden;box-shadow:0 1px 2px rgba(0,0,0,.12)}
+  .agenda{display:grid;gap:12px}
+  .dayc{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+  .dh{background:#f4f7fb;padding:9px 16px;font-weight:700;font-size:13px;color:var(--navy);border-bottom:1px solid var(--line);display:flex;justify-content:space-between}
+  .dh .n{font-weight:500;color:var(--mut);font-size:12px}
+  .ev{display:flex;align-items:center;gap:10px;padding:9px 16px;border-bottom:1px solid #f0f4f8;font-size:13px}
+  .ev .vn{font-weight:600;min-width:130px}
+  .tag{font-size:10.5px;font-weight:700;letter-spacing:.4px;padding:2px 7px;border-radius:20px;color:#fff}
+  .ev .meta{color:var(--mut);font-size:12px;margin-left:auto;text-align:right}
+  .vessels{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:14px}
+  .vcard{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+  .vh{background:var(--navy);color:#fff;padding:11px 16px}
+  .vh .nm{font-weight:700;font-size:15px}.vh .mv{font-size:11.5px;color:#bcd3ec;margin-top:2px}
+  .leg{display:flex;align-items:center;gap:10px;padding:6px 16px;font-size:12.5px}
+  .leg .d{width:64px;color:var(--mut);font-size:11.5px}
+  .leg .e{font-weight:700;font-size:10px;width:34px;color:var(--navy)}
+  .leg .t{margin-left:auto;color:var(--mut);font-size:11.5px}
+  .empty{padding:40px;text-align:center;color:var(--grey);font-size:13px;background:var(--card);border:1px solid var(--line);border-radius:12px}
+  .login{max-width:400px;margin:12vh auto;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:34px 30px;text-align:center;box-shadow:0 10px 30px rgba(14,42,71,.08)}
+  .login .mark{width:44px;height:44px;border:2px solid var(--navy);color:var(--navy);margin:0 auto 16px}
+  .login h1{font-size:19px;margin:0 0 6px;color:var(--navy)}
+  .toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--navy);color:#fff;padding:10px 16px;border-radius:8px;font-size:13px;z-index:80}
+</style>
+</head>
+<body>
+<div id="root"><div class="login"><div class="mark">CPG</div><h1>CPG Shipping Console</h1><p class="hint">Loading…</p></div></div>
+
+<script type="module">
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+/* ====== SETTINGS — fill these two in ====== */
+const SUPABASE_URL = "https://coyezjmtealvmltnsxgw.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNveWV6am10ZWFsdm1sdG5zeGd3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA4OTY5MDYsImV4cCI6MjA5NjQ3MjkwNn0.0m3zIy0AjYkZHVjnNc_zSXvVRlyozCmh8UNqT6nVThI";
+/* ========================================== */
+
+const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const $ = (h)=>{const d=document.createElement("div");d.innerHTML=h.trim();return d.firstChild;};
+const root = document.getElementById("root");
+const PORTS={AFUNGI:"--afungi",NACALA:"--nacala",PEMBA:"--pemba",MAPUTO:"--maputo",BEIRA:"--beira",MTWARA:"--mtwara"};
+const cssv=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const pc=p=>{const v=PORTS[(p||"").toUpperCase()];return v?cssv(v):cssv("--other");};
+const MON=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const DOW=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+const pad=n=>(n<10?"0":"")+n;
+const dnum=iso=>Math.floor(Date.parse(iso+"T00:00:00Z")/86400000);
+const fmt=iso=>{const p=(iso||"").split("-");return p.length===3?p[2]+" "+MON[+p[1]-1]:iso;};
+const fmtFull=iso=>{const d=new Date(iso+"T00:00:00Z");return DOW[d.getUTCDay()]+" "+d.getUTCDate()+" "+MON[d.getUTCMonth()]+" "+d.getUTCFullYear();};
+const esc=t=>String(t==null?"":t).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+let toastT; function toast(m){clearTimeout(toastT);let t=document.querySelector(".toast");if(!t){t=$('<div class="toast"></div>');document.body.appendChild(t);}t.textContent=m;toastT=setTimeout(()=>t.remove(),2800);}
+
+/* ---- parse the daily movement email ---- */
+function parse(text){
+  const out=[];
+  (String(text||"").split(/Vessel\s*:/i).slice(1)).forEach(b=>{
+    const lines=b.split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
+    if(!lines.length) return;
+    const v={name:lines[0].replace(/\s+/g," ").trim(),movement:"",loaded:"",events:[]};
+    lines.slice(1).forEach(ln=>{
+      let m=ln.match(/^Movement\s*:?\s*(.*)$/i); if(m){v.movement=m[1].replace(/\s+/g," ").trim();return;}
+      m=ln.match(/^Loaded\s*:?\s*(.*)$/i); if(m){v.loaded=m[1].replace(/\s+/g," ").trim();return;}
+      const ev=ln.match(/\b(ET[ABD])\b\s+([A-Za-z]+)/i), dm=ln.match(/(\d{1,2})\.(\d{1,2})\.(\d{4})/);
+      if(ev&&dm){
+        const before=ln.slice(0,ln.indexOf(dm[0]));
+        v.events.push({type:ev[1].toUpperCase(),port:ev[2].replace(/[^A-Za-z]/g,""),
+          iso:`${+dm[3]}-${pad(+dm[2])}-${pad(+dm[1])}`,
+          time:(before.split(":").slice(1).join(":")||"").replace(/\s+/g," ").trim(),
+          voy:(ln.match(/Voy[^)\n]*?\d+/i)||[""])[0].trim()});
+      }
+    });
+    if(v.events.length) out.push(v);
+  });
+  return out;
+}
+function stays(v,minIso){
+  const ev=v.events.slice().sort((a,b)=>a.iso.localeCompare(b.iso)); const out=[]; let open=null;
+  const al=(v.movement||"").match(/alongside\s+([A-Za-z]+)/i)||(v.movement||"").match(/in\s+([A-Za-z]+)\s+anchorage/i);
+  if(al) open={port:al[1],start:minIso};
+  ev.forEach(e=>{
+    if(e.type==="ETA"||e.type==="ETB"){
+      if(open&&open.port.toUpperCase()===e.port.toUpperCase()){} else {if(open)out.push(open);open={port:e.port,start:e.iso,arr:e};}
+    } else if(e.type==="ETD"){ if(open){open.end=e.iso;open.dep=e;out.push(open);open=null;} else out.push({port:e.port,start:e.iso,end:e.iso,dep:e}); }
+  });
+  if(open){open.end=open.start;out.push(open);}
+  return out;
+}
+
+/* ---- state ---- */
+let session=null, isAdmin=false, updates=[], selId="", tab="timeline";
+
+async function resolveRole(){
+  isAdmin=false;
+  const email=(session.user.email||"").toLowerCase();
+  try{ const {data}=await sb.from("shipping_roles").select("role,user_id,email");
+       if(data){ const mine=data.find(x=>x.user_id===session.user.id||String(x.email||"").toLowerCase()===email);
+                 if(mine&&mine.role==="admin") isAdmin=true; } }catch(e){}
+  if(!isAdmin){ try{ const {data}=await sb.from("profiles").select("role").eq("id",session.user.id).maybeSingle();
+                     if(data&&data.role==="admin") isAdmin=true; }catch(e){} }
+}
+async function load(){
+  const {data,error}=await sb.from("shipping_updates").select("id,update_date,raw_text,created_at").order("update_date",{ascending:false}).order("created_at",{ascending:false});
+  if(error){ toast(/shipping_updates|relation/i.test(error.message)?"Run enable_shipping.sql in Supabase first":error.message); updates=[]; return; }
+  updates=data||[]; if(!updates.some(u=>u.id===selId)) selId=updates[0]?updates[0].id:"";
+}
+
+/* ---- views ---- */
+function viewTimeline(vessels){
+  if(!vessels.length) return '<div class="empty">No vessels in this update.</div>';
+  const all=[]; vessels.forEach(v=>v.events.forEach(e=>all.push(e.iso))); all.sort();
+  const d0=dnum(all[0]),d1=dnum(all[all.length-1]),N=d1-d0+1,W=30;
+  let ax='';
+  for(let i=0;i<N;i++){const dt=new Date((d0+i)*86400000),dw=dt.getUTCDay();
+    ax+=`<div class="day${dw===0||dw===6?" we":""}"><span class="mo">${(dt.getUTCDate()===1||i===0)?MON[dt.getUTCMonth()]:""}</span>${dt.getUTCDate()}</div>`;}
+  let rows='';
+  vessels.forEach(v=>{
+    let tr='';
+    for(let i=0;i<N;i++){const dw=new Date((d0+i)*86400000).getUTCDay();
+      if(dw===0||dw===6) tr+=`<div class="we" style="left:${i*W}px;width:${W}px"></div>`;
+      tr+=`<div class="grid" style="left:${i*W}px"></div>`;}
+    stays(v,all[0]).forEach(s=>{const a=dnum(s.start)-d0,b=dnum(s.end)-d0;
+      const tip=`${v.name} — ${s.port}\n${s.arr?("ETA "+fmt(s.start)+(s.arr.time?" "+s.arr.time:"")):""}${s.dep?("\nETD "+fmt(s.end)+(s.dep.time?" "+s.dep.time:"")):""}`;
+      tr+=`<div class="portbar" style="left:${a*W+2}px;width:${Math.max(W-4,(b-a)*W+W-4)}px;background:${pc(s.port)}" title="${esc(tip)}">${esc(s.port)}</div>`;});
+    rows+=`<div class="trow"><div class="vlabel"><div class="nm">${esc(v.name)}</div><div class="mv">${esc(v.movement)}</div></div><div class="track" style="width:${N*W}px">${tr}</div></div>`;
+  });
+  return `<div class="tl"><div style="min-width:${158+N*W}px"><div class="axis"><div class="corner"></div><div class="days">${ax}</div></div>${rows}</div></div>`;
+}
+function viewDay(vessels){
+  const map={}; vessels.forEach(v=>v.events.forEach(e=>{(map[e.iso]=map[e.iso]||[]).push({v:v.name,e});}));
+  const dates=Object.keys(map).sort(); if(!dates.length) return '<div class="empty">No dated movements found.</div>';
+  const LAB={ETA:"ARRIVE",ETB:"BERTH",ETD:"DEPART"};
+  return '<div class="agenda">'+dates.map(iso=>{
+    const items=map[iso].slice().sort((a,b)=>a.e.type>b.e.type?1:-1);
+    return `<div class="dayc"><div class="dh"><span>${fmtFull(iso)}</span><span class="n">${items.length} movement${items.length>1?"s":""}</span></div>`+
+      items.map(it=>`<div class="ev"><span class="vn">${esc(it.v)}</span><span class="tag" style="background:${pc(it.e.port)}">${LAB[it.e.type]||it.e.type}</span><span style="font-weight:600;color:${pc(it.e.port)}">${esc(it.e.port)}</span><span class="meta">${esc(it.e.time)}${it.e.voy?" · "+esc(it.e.voy):""}</span></div>`).join("")+`</div>`;
+  }).join("")+'</div>';
+}
+function viewVessel(vessels){
+  if(!vessels.length) return '<div class="empty">No vessels in this update.</div>';
+  return '<div class="vessels">'+vessels.map(v=>`<div class="vcard"><div class="vh"><div class="nm">${esc(v.name)}</div><div class="mv">${esc(v.movement)}${v.loaded?" · Loaded: "+esc(v.loaded):""}</div></div><div style="padding:6px 0">`+
+    v.events.slice().sort((a,b)=>a.iso.localeCompare(b.iso)).map(e=>`<div class="leg"><span class="d">${fmt(e.iso)}</span><span class="e">${e.type}</span><span style="font-weight:600;color:${pc(e.port)}">${esc(e.port)}</span><span class="t">${esc(e.time)}${e.voy?" · "+esc(e.voy):""}</span></div>`).join("")+
+    `</div></div>`).join("")+'</div>';
+}
+
+/* ---- render ---- */
+function render(){
+  if(!session){
+    root.innerHTML=`<div class="login"><div class="mark">CPG</div><h1>CPG Shipping Console</h1>
+      <p class="hint" style="margin-bottom:22px">Fleet movements &amp; port calls</p>
+      <button class="btn" style="width:100%" id="signin">Sign in with Outlook</button>
+      <div class="hint" style="margin-top:16px;line-height:1.5">Use your work Outlook account.<br>Access is granted by your administrator.</div></div>`;
+    document.getElementById("signin").onclick=()=>sb.auth.signInWithOAuth({provider:"azure",options:{scopes:"openid email profile",redirectTo:window.location.href.split("#")[0]}});
+    return;
+  }
+  const cur=updates.find(u=>u.id===selId)||updates[0]||null;
+  const vessels=cur?parse(cur.raw_text):[];
+  const used={}; vessels.forEach(v=>v.events.forEach(e=>used[e.port.toUpperCase()]=1));
+  root.innerHTML=`
+  <header><div class="brand"><div class="mark">CPG</div>
+    <div><h1>CPG Shipping Console</h1><div class="sub">Fleet movements &amp; port calls</div></div>
+    <div class="who">${esc(session.user.email)}<div class="rolechip">${isAdmin?"admin":"viewer"}</div>
+      <button class="btn link" id="out">Sign out</button></div></div></header>
+  <div class="wrap">
+    <div class="bar"><span class="hint">Update:</span>
+      ${updates.length?`<select id="sel">${updates.map(u=>`<option value="${u.id}"${u.id===(cur&&cur.id)?" selected":""}>${fmtFull(u.update_date)}</option>`).join("")}</select>`:'<span class="hint">No updates published yet.</span>'}
+      ${cur?`<span class="hint">${vessels.length} vessels</span>`:""}
+      ${isAdmin&&cur?'<button class="btn ghost sm" id="del">Delete this update</button>':""}
+    </div>
+    ${isAdmin?`<details class="paste"><summary>+ Publish a new daily update</summary><div class="body">
+      <p class="hint" style="margin:0 0 8px">Paste Genésio's email exactly as received, set its date, then Publish.</p>
+      <div class="bar"><span class="hint">Update date</span><input type="date" id="d" value="${new Date().toISOString().slice(0,10)}"></div>
+      <textarea id="raw" spellcheck="false" placeholder="Vessel: AMS MARS&#10;Movement: ...&#10;ETA Afungi : 0500 hrs 09.07.2026 ..."></textarea>
+      <div class="bar" style="margin-top:10px"><button class="btn" id="pub">Publish update</button></div>
+    </div></details>`:""}
+    <div class="tabs">
+      <button class="tab${tab==="timeline"?" on":""}" data-t="timeline">Timeline</button>
+      <button class="tab${tab==="day"?" on":""}" data-t="day">By day</button>
+      <button class="tab${tab==="vessel"?" on":""}" data-t="vessel">By vessel</button>
+    </div>
+    <div class="legend">${Object.keys(PORTS).filter(p=>used[p]).map(p=>`<b><span class="dot" style="background:${pc(p)}"></span>${p[0]+p.slice(1).toLowerCase()}</b>`).join("")}</div>
+    <div id="view">${!cur?`<div class="empty">No update selected. ${isAdmin?"Publish one above to get started.":"Ask an administrator to publish today's update."}</div>`:(tab==="timeline"?viewTimeline(vessels):tab==="day"?viewDay(vessels):viewVessel(vessels))}</div>
+  </div>`;
+  document.getElementById("out").onclick=()=>sb.auth.signOut();
+  const sel=document.getElementById("sel"); if(sel) sel.onchange=e=>{selId=e.target.value;render();};
+  document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>{tab=b.dataset.t;render();});
+  const pub=document.getElementById("pub");
+  if(pub) pub.onclick=async()=>{
+    const raw=document.getElementById("raw").value, d=document.getElementById("d").value;
+    if(!raw.trim()) return alert("Paste the daily update first.");
+    if(!d) return alert("Pick the update date.");
+    const {error}=await sb.from("shipping_updates").insert({update_date:d,raw_text:raw,created_by:session.user.id});
+    if(error) return toast(error.message);
+    await load(); toast("Update published"); render();
+  };
+  const del=document.getElementById("del");
+  if(del) del.onclick=async()=>{ if(!confirm("Delete this update?"))return;
+    const {error}=await sb.from("shipping_updates").delete().eq("id",cur.id);
+    if(error) return toast(error.message);
+    await load(); toast("Deleted"); render(); };
+}
+
+/* ---- boot ---- */
+const {data:{session:s0}}=await sb.auth.getSession();
+session=s0;
+if(session){ await resolveRole(); await load(); }
+render();
+sb.auth.onAuthStateChange(async(_e,s)=>{ session=s; if(session){await resolveRole();await load();} render(); });
+</script>
+</body>
+</html>
