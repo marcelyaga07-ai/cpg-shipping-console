@@ -156,8 +156,15 @@ async function resolveRole(){
   if(!isAdmin){ try{ const {data}=await sb.from("profiles").select("role").eq("id",session.user.id).maybeSingle();
                      if(data&&data.role==="admin") isAdmin=true; }catch(e){} }
 }
+let hasPublisher=true;
 async function load(){
-  const {data,error}=await sb.from("shipping_updates").select("id,update_date,raw_text,created_at,published_by").order("update_date",{ascending:false}).order("created_at",{ascending:false});
+  let cols=hasPublisher?"id,update_date,raw_text,created_at,published_by":"id,update_date,raw_text,created_at";
+  let {data,error}=await sb.from("shipping_updates").select(cols).order("update_date",{ascending:false}).order("created_at",{ascending:false});
+  if(error && /published_by/.test(error.message||"")){          // column not created yet
+    hasPublisher=false;
+    ({data,error}=await sb.from("shipping_updates").select("id,update_date,raw_text,created_at").order("update_date",{ascending:false}).order("created_at",{ascending:false}));
+    toast("Run enable_shipping_publisher.sql to record who published each update");
+  }
   if(error){ toast(/shipping_updates|relation/i.test(error.message)?"Run enable_shipping.sql in Supabase first":error.message); updates=[]; return; }
   updates=data||[]; if(!updates.some(u=>u.id===selId)) selId=updates[0]?updates[0].id:"";
 }
@@ -209,7 +216,7 @@ function viewVessel(vessels){
 
 /* ---- editing ---- */
 async function saveRaw(id,newRaw){
-  const {error}=await sb.from("shipping_updates").update({raw_text:newRaw,published_by:session.user.email}).eq("id",id);
+  const {error}=await sb.from("shipping_updates").update(hasPublisher?{raw_text:newRaw,published_by:session.user.email}:{raw_text:newRaw}).eq("id",id);
   if(error){ toast(error.message); return false; }
   await load(); toast("Update saved"); return true;
 }
@@ -236,14 +243,14 @@ function render(){
   const used={}; vessels.forEach(v=>v.events.forEach(e=>used[e.port.toUpperCase()]=1));
   root.innerHTML=`
   <header><div class="brand"><div class="mark">CPG</div>
-    <div><h1>CPG Shipping Console</h1><div class="sub">Fleet movements &amp; port calls</div></div>
+    <div><h1>CPG Shipping Console</h1><div class="sub">Fleet movements &amp; port calls · <span style="color:#e0c07a">v2 · edit + publisher</span></div></div>
     <div class="who">${esc(session.user.email)}<div class="rolechip">${isAdmin?"admin":"viewer"}</div>
       <button class="btn link" id="out">Sign out</button></div></div></header>
   <div class="wrap">
     <div class="bar"><span class="hint">Update:</span>
       ${updates.length?`<select id="sel">${updates.map(u=>`<option value="${u.id}"${u.id===(cur&&cur.id)?" selected":""}>${fmtFull(u.update_date)}</option>`).join("")}</select>`:'<span class="hint">No updates published yet.</span>'}
       ${cur?`<span class="hint">${vessels.length} vessels</span>`:""}
-      ${cur?`<span class="hint" style="margin-left:auto;text-align:right">Published by <b style="color:var(--ink)">${esc(cur.published_by||"—")}</b><br>${esc(stamp(cur.created_at))}</span>`:""}
+      ${cur?`<span class="hint" style="margin-left:auto;text-align:right">Last updated by <b style="color:var(--ink)">${esc(cur.published_by||"—")}</b><br>${esc(stamp(cur.created_at))}</span>`:""}
       ${isAdmin&&cur?'<button class="btn ghost sm" id="editall">Edit full text</button>':""}
       ${isAdmin&&cur?'<button class="btn ghost sm" id="del">Delete this update</button>':""}
     </div>
@@ -272,7 +279,7 @@ function render(){
     const raw=document.getElementById("raw").value, d=document.getElementById("d").value;
     if(!raw.trim()) return alert("Paste the daily update first.");
     if(!d) return alert("Pick the update date.");
-    const {error}=await sb.from("shipping_updates").insert({update_date:d,raw_text:raw,created_by:session.user.id,published_by:session.user.email});
+    const {error}=await sb.from("shipping_updates").insert(hasPublisher?{update_date:d,raw_text:raw,created_by:session.user.id,published_by:session.user.email}:{update_date:d,raw_text:raw,created_by:session.user.id});
     if(error) return toast(error.message);
     await load(); toast("Update published"); render();
   };
